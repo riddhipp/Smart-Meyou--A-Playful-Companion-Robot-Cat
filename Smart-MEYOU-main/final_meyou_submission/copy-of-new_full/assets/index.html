@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Smart MEYOU Monitoring</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        @keyframes liveCatMotion {
+            0% { transform: translateY(0px) scale(1); }
+            50% { transform: translateY(-8px) scale(1.05); }
+            100% { transform: translateY(0px) scale(1); }
+        }
+
+        @keyframes popEffect {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.3); }
+            100% { transform: scale(1); }
+        }
+
+        @keyframes inputFlyAndBurst {
+            0% { transform: translateX(0px) scale(0.5); opacity: 0; }
+            60% { transform: translateX(110px) scale(1.1); opacity: 1; }
+            80% { transform: translateX(115px) scale(1.2); opacity: 0.8; }
+            100% { transform: translateX(120px) scale(0.8); opacity: 0; }
+        }
+
+        @keyframes responsePopIn {
+            0% { transform: scale(0); opacity: 0; }
+            70% { transform: scale(1.1); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .cat-layout {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            margin-left: 80px;
+            margin-top: -30px;
+        }
+
+        #emoji-face {
+            font-size: 12em; 
+            display: inline-block;
+            animation: liveCatMotion 2.5s ease-in-out infinite;
+        }
+
+        .pop {
+            animation: popEffect 0.3s ease-in-out !important;
+        }
+
+        /* --- Stable Tracking Container Box (Fixed layout to prevent jumping) --- */
+        .tracking-container {
+            width: 320px;
+            height: 75px; /* Fixed height so it never resizes */
+            background: #f8f9fa;
+            border: 2px solid #ccc;
+            border-radius: 8px;
+            padding: 8px;
+            text-align: center;
+            margin-top: 8px;
+            margin-bottom: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        #tracking-label {
+            font-size: 0.9em;
+            color: #d32f2f;
+            font-weight: bold;
+            margin: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 2; /* Limits text strictly to 2 lines max */
+            -webkit-box-orient: vertical;
+            word-break: break-word;
+        }
+
+        /* --- Floating Interaction Value Bubble Styles --- */
+        .interaction-bubble {
+            position: absolute;
+            right: 20px;
+            top: -50px;
+            background: linear-gradient(135deg, #ff7eb3, #ff758c);
+            border: 2px solid #fff;
+            border-radius: 20px;
+            padding: 8px 16px;
+            font-size: 1em;
+            font-weight: bold;
+            color: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            text-align: center;
+            white-space: nowrap;
+            animation: responsePopIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 20;
+            transition: background 0.3s ease, transform 0.2s ease;
+        }
+
+        .input-bubble {
+            position: absolute;
+            left: -150px;
+            top: 110px;
+            background: #e3f2fd;
+            border: 2px dashed #1976d2;
+            border-radius: 15px;
+            padding: 10px 15px;
+            font-size: 1em;
+            font-weight: bold;
+            color: #0d47a1;
+            max-width: 180px;
+            text-align: left;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            opacity: 0;
+            pointer-events: none;
+            white-space: pre-line;
+        }
+
+        .speech-bubble {
+            position: absolute;
+            left: 230px; 
+            top: 110px;
+            background: #ffffff;
+            border: 3px solid #333;
+            border-radius: 20px;
+            padding: 14px 20px;
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #333;
+            max-width: 280px;
+            text-align: left;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+            white-space: pre-line;
+            animation: responsePopIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 10;
+        }
+
+        .speech-bubble:after {
+            content: '';
+            position: absolute;
+            left: -15px;
+            top: 50%;
+            width: 0;
+            height: 0;
+            border: 10px solid transparent;
+            border-right-color: #333;
+            border-left: 0;
+            margin-top: -10px;
+        }
+
+        .control-pad {
+            display: grid;
+            grid-template-columns: repeat(3, 70px);
+            gap: 8px;
+            justify-content: center;
+            margin-top: 12px;
+        }
+
+        .control-btn {
+            background-color: #00897b;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        .control-btn:hover { background-color: #115293; }
+        .control-btn:active { transform: scale(0.95); }
+        .control-btn.stop { background-color: #dc3545; }
+        .control-btn.stop:hover { background-color: #a71d2a; }
+
+        .action-row {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+
+        .action-btn {
+            background-color: #4caf50;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 0.9em;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+            transition: background 0.2s, transform 0.1s;
+        }
+        .action-btn:hover { background-color: #388e3c; }
+        .action-btn:active { transform: scale(0.95); }
+
+        .collapsible-panel {
+            display: none;
+            animation: responsePopIn 0.4s ease-in-out;
+        }
+
+        .hardware-container, .sensor-container {
+            width: 85%;
+            max-width: 550px;
+            margin: 15px auto;
+            background: #ffffff;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            padding: 10px 15px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+            text-align: left;
+        }
+
+        .hardware-header {
+            font-weight: bold;
+            color: #333;
+            font-size: 0.95em;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+            margin-bottom: 8px;
+        }
+
+        .hw-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            font-size: 0.85em;
+        }
+
+        .hw-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #f8f9fa;
+            padding: 6px 10px;
+            border-radius: 5px;
+            border-left: 4px solid #ccc;
+        }
+
+        .hw-item.ok { border-left-color: #28a745; }
+        .hw-item.error { border-left-color: #dc3545; }
+        .hw-item.warning { border-left-color: #ff9800; background: #fff8e1; }
+
+        .badge {
+            font-weight: bold;
+            font-size: 0.8em;
+        }
+        .badge.ok { color: #28a745; }
+        .badge.error { color: #dc3545; }
+        .badge.warning { color: #e65100; }
+
+        .log-container {
+            width: 85%;
+            max-width: 550px;
+            margin: 10px auto 30px auto;
+            background: #1e1e1e;
+            color: #00ff66;
+            font-family: monospace;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: left;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+
+        .log-header {
+            font-weight: bold;
+            color: #ffffff;
+            border-bottom: 1px solid #444;
+            padding-bottom: 5px;
+            margin-bottom: 8px;
+            font-size: 0.9em;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        #status-log-box {
+            height: 75px;
+            overflow-y: auto;
+            font-size: 0.82em;
+            line-height: 1.4;
+            white-space: pre-line;
+        }
+
+        /* --- Responsive Mobile Styles --- */
+        @media screen and (max-width: 768px) {
+            .main-container {
+                flex-direction: column !important;
+                gap: 20px !important;
+            }
+
+            .cat-layout {
+                margin-left: 0;
+                margin-top: 10px;
+                width: 100%;
+            }
+
+            #emoji-face {
+                font-size: 8em;
+            }
+
+            .speech-bubble {
+                position: relative;
+                left: 0;
+                top: 10px;
+                max-width: 90%;
+                margin: 0 auto;
+            }
+
+            .speech-bubble:after {
+                display: none; 
+            }
+
+            .input-bubble {
+                position: relative;
+                left: 0;
+                top: -5px;
+                margin-bottom: 10px;
+                max-width: 90%;
+                opacity: 0;
+            }
+
+            @keyframes inputFlyAndBurstMobile {
+                0% { transform: scale(0.5); opacity: 0; }
+                60% { transform: scale(1.05); opacity: 1; }
+                80% { transform: scale(1.1); opacity: 0.9; }
+                100% { transform: scale(1); opacity: 0; }
+            }
+
+            .input-bubble.animate-mobile {
+                animation: inputFlyAndBurstMobile 1.2s ease-in-out forwards !important;
+            }
+
+            img {
+                width: 100% !important;
+                max-width: 320px;
+                height: auto !important;
+            }
+        }
+    </style>
+</head>
+<body style="text-align: center; font-family: sans-serif; background-color: #f4f4f9; margin: 0; padding: 10px;">
+    <h2>MEYOU VIEW</h2>
+    
+    <!-- Main Horizontal Container: Controls -> Camera -> Cat -->
+    <div class="main-container" style="display: flex; align-items: center; justify-content: center; gap: 40px; margin: 15px 0; flex-wrap: wrap;">
+        
+        <!-- 1. Directional Movement Control Pad & Actions (Left Side) -->
+        <div style="display: flex; flex-direction: column; align-items: center;">
+            <div style="font-weight: bold; color: #333; margin-bottom: 5px; font-size: 0.95em;">🎮 Controls</div>
+            
+            <!-- Directional Movement Control Pad -->
+            <div class="control-pad">
+                <div></div>
+                <button class="control-btn" onclick="sendRobotCommand('forward')">⬆️</button>
+                <div></div>
+                <button class="control-btn" onclick="sendRobotCommand('left')">⬅️</button>
+                <button class="control-btn stop" onclick="sendRobotCommand('stop')">⏹️</button>
+                <button class="control-btn" onclick="sendRobotCommand('right')">➡️</button>
+                <div></div>
+                <button class="control-btn" onclick="sendRobotCommand('backward')">⬇️</button>
+                <div></div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="action-row" style="max-width: 230px;">
+                <button class="action-btn" style="background-color: #00bcd4;" onclick="sendRobotCommand('hi')">👋 Hi</button>
+                <button class="action-btn" style="background-color: #ff9800;" onclick="sendRobotCommand('sit')">🐾 Sit</button>
+                <button class="action-btn" style="background-color: #9c27b0;" onclick="sendRobotCommand('dance')">💃 Dance</button>
+                <button class="action-btn" style="background-color: #607d8b;" onclick="sendRobotCommand('status')">📊 Status</button>
+                <button class="action-btn" style="background-color: #607d8b;" onclick="sendRobotCommand('meyou')">📊 Meyou</button>
+            </div>
+        </div>
+
+        <!-- 2. Camera Feed, Tracking Label Container, Dedicated Game Banner & OCR Box (Middle) -->
+        <div style="display: flex; flex-direction: column; align-items: center;">
+            <div style="font-weight: bold; color: #333; margin-bottom: 5px; font-size: 0.95em;">📷 Live Feed</div>
+            <img src="/video_feed" width="320" height="240" style="border: 3px solid #333; display: block; background: #fff; border-radius: 8px;">
+            
+            <!-- Stable Tracking Container Box -->
+            <div class="tracking-container">
+                <div style="font-size: 0.8em; font-weight: bold; color: #555; border-bottom: 1px solid #e0e0e0; padding-bottom: 2px; margin-bottom: 4px;">🏷️ Tracking Status</div>
+                <div id="tracking-label">Tracking: Initializing...</div>
+            </div>
+            
+            <!-- 🎮 Dedicated Game Status Banner -->
+            <div id="game-status-banner" style="width: 320px; background: #fff3e0; border: 2px dashed #fb8c00; border-radius: 8px; padding: 8px; text-align: center; margin-bottom: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); display: none;">
+                <div style="font-size: 0.85em; font-weight: bold; color: #e65100;" id="game-banner-title">🎮 Active Game</div>
+                <div id="game-banner-text" style="font-size: 0.9em; color: #bf360c; font-weight: bold; margin-top: 2px;">Waiting for game start...</div>
+            </div>
+
+            <!-- OCR Result Box -->
+            <div id="ocr-panel" style="width: 320px; background: #e0f2f1; border: 2px solid #00897b; border-radius: 8px; padding: 8px; text-align: left; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                <div style="font-size: 0.85em; font-weight: bold; color: #004d40; border-bottom: 1px solid #b2dfdb; padding-bottom: 3px; margin-bottom: 4px;">🔍 Detected Text (OCR)</div>
+                <div id="ocr-result-box" style="font-size: 0.9em; color: #00695c; font-family: monospace; white-space: pre-wrap; word-break: break-all; max-height: 50px; overflow-y: auto;">Waiting for text...</div>
+            </div>
+        </div>
+
+        <!-- 3. Larger Cat Face & Interactive Speech Layout (Right Side) -->
+        <div class="cat-layout">
+            <div class="input-bubble" id="user-input-bubble"></div>
+            <!-- Cute Interaction Value Bubble -->
+            <div class="interaction-bubble" id="interaction-bubble">✨ Score: 0</div>
+            <div id="emoji-face">😻</div>
+            <div class="speech-bubble" id="cat-speech">"Purrr... ready!"</div>
+        </div>
+
+    </div>
+
+    <div style="font-size: 1.1em; margin-top: 15px;">
+        <span id="emotion-label" style="font-weight: bold; color: #1976d2;">❤️ Emotion: 100%</span> | 
+        <span id="mood-label" style="font-weight: bold; color: #388e3c;">🧠 Mood: Super Happy 😻</span>
+    </div>
+
+    <!-- 📡 Live Sensor Telemetry Panel -->
+    <div class="sensor-container" id="sensor-panel">
+        <div class="hardware-header">📡 Live Sensor Telemetry</div>
+        <div class="hw-grid">
+            <div class="hw-item ok" id="sensor-flame">
+                <span>🔥 Flame Sensor Safety</span>
+                <span class="badge ok" id="stat-flame">SAFE (0)</span>
+            </div>
+            
+        </div>
+    </div>
+
+    <!-- Hardware Component Monitoring Panel -->
+    <div class="hardware-container collapsible-panel" id="hardware-panel">
+        <div class="hardware-header">🔌 Hardware Component Status</div>
+        <div class="hw-grid">
+            <div class="hw-item ok" id="hw-camera">
+                <span>📷 Camera</span>
+                <span class="badge ok" id="stat-camera">CONNECTED</span>
+            </div>
+            <div class="hw-item ok" id="hw-mic">
+                <span>🎙️ Microphone</span>
+                <span class="badge ok" id="stat-mic">WORKING</span>
+            </div>
+            <div class="hw-item ok" id="hw-speaker">
+                <span>🔊 Speaker</span>
+                <span class="badge ok" id="stat-speaker">READY</span>
+            </div>
+            <div class="hw-item ok" id="hw-mcu">
+                <span>⚡ Arduino Uno Q</span>
+                <span class="badge ok" id="stat-mcu">CONNECTED</span>
+            </div>
+            <div class="hw-item ok" id="hw-servo" style="grid-column: span 2;">
+                <span>⚙️ Servos</span>
+                <span class="badge ok" id="stat-servo">ACTIVE (OK)</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Health Log Panel -->
+    <div class="log-container collapsible-panel" id="log-panel">
+        <div class="log-header">
+            <span>⚙️ System Activity Log</span>
+            <span id="health-status" style="color: #00ff66;">● ONLINE</span>
+        </div>
+        <div id="status-log-box">[System initialized. Say "status" or trigger keyword to view diagnostics.]</div>
+    </div>
+
+    <!-- Arduino WebUI Javascript Libraries -->
+    <script src="libs/socket.io.min.js"></script>
+    <script src="libs/arduino.js"></script>
+    <script>
+        const ui = new WebUI();
+
+        ui.on_connect(onUIConnected);
+        ui.on_disconnect(onUIDisconnected);
+
+        function onUIConnected() { console.log('Connected to the Arduino WebUI server'); }
+        function onUIDisconnected() { console.log('Disconnected from the Arduino WebUI server'); }
+
+        function safeText(text, fallback = "") {
+            if (!text || text === undefined || text === null) return fallback;
+            let str = String(text).trim();
+            if (str === "" || str === "undefined" || str === "null") return fallback;
+            return str;
+        }
+
+        function addSystemLog(message) {
+            const logBox = document.getElementById('status-log-box');
+            const timestamp = new Date().toLocaleTimeString();
+            const cleanMsg = safeText(message);
+            if (cleanMsg !== "") {
+                logBox.innerText += `\n[${timestamp}] ${cleanMsg}`;
+                logBox.scrollTop = logBox.scrollHeight;
+            }
+        }
+
+        function sendRobotCommand(command) {
+            ui.send_message('robot_command', { action: command });
+            addSystemLog(`Command sent: ${command.toUpperCase()}`);
+        }
+
+        function updateHardwareStatus(target, statusText, isOk) {
+            const itemElem = document.getElementById(`hw-${target}`);
+            const badgeElem = document.getElementById(`stat-${target}`);
+            if (itemElem && badgeElem) {
+                badgeElem.innerText = statusText;
+                if (isOk) {
+                    itemElem.className = "hw-item ok";
+                    badgeElem.className = "badge ok";
+                } else {
+                    itemElem.className = "hw-item error";
+                    badgeElem.className = "badge error";
+                }
+            }
+        }
+
+        function revealStatusPanels() {
+            document.getElementById('hardware-panel').style.display = "block";
+            document.getElementById('log-panel').style.display = "block";
+        }
+
+        function triggerInteractionSequence(inputText, responseText) {
+            const inputBubble = document.getElementById('user-input-bubble');
+            const speechElem = document.getElementById('cat-speech');
+
+            const cleanInput = safeText(inputText);
+            const cleanResponse = safeText(responseText);
+
+            if (cleanInput !== "") {
+                inputBubble.innerText = `"${cleanInput}"`;
+                inputBubble.style.animation = 'none';
+                inputBubble.offsetHeight; 
+                
+                if (window.innerWidth <= 768) {
+                    inputBubble.classList.add('animate-mobile');
+                } else {
+                    inputBubble.style.animation = 'inputFlyAndBurst 1.2s ease-in-out forwards';
+                }
+                addSystemLog(`Heard: "${cleanInput}"`);
+            }
+
+            if (cleanResponse !== "") {
+                setTimeout(() => {
+                    speechElem.style.animation = 'none';
+                    speechElem.offsetHeight;
+                    speechElem.style.animation = 'responsePopIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+                    speechElem.innerText = `"${cleanResponse}"`;
+                    addSystemLog(`Replied: "${cleanResponse}"`);
+                }, 1000);
+            }
+        }
+
+        const idleMeows = [
+            "Purrrrr...", "Thinking about fish...", "Zzz... dreaming of laser pointers...", "Meow? Is someone there?", "Staring into space..."
+        ];
+
+        setInterval(() => {
+            if(Math.random() > 0.75) {
+                const randomThought = idleMeows[Math.floor(Math.random() * idleMeows.length)];
+                const speechElem = document.getElementById('cat-speech');
+                speechElem.style.animation = 'none';
+                speechElem.offsetHeight;
+                speechElem.style.animation = 'responsePopIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+                speechElem.innerText = `"${randomThought}"`;
+            }
+        }, 12000);
+
+        ui.on_message('label_update', (d) => {
+            if (d && d.tracking) {
+                document.getElementById('tracking-label').innerText = safeText(d.tracking, "Tracking: Active");
+            }
+        });
+
+        // 📡 Sensor Telemetry Listener
+        ui.on_message('sensor_update', (d) => {
+            if (!d) return;
+            
+            const flameItem = document.getElementById('sensor-flame');
+            const flameBadge = document.getElementById('stat-flame');
+            if (d.flame_active) {
+                flameItem.className = "hw-item error";
+                flameBadge.className = "badge error";
+                flameBadge.innerText = "🔥 HAZARD DETECTED!";
+            } else {
+                flameItem.className = "hw-item ok";
+                flameBadge.className = "badge ok";
+                flameBadge.innerText = "SAFE";
+            }
+        });
+
+        // OCR Message Listener
+        ui.on_message('ocr_update', (d) => {
+            const ocrBox = document.getElementById('ocr-result-box');
+            let recognizedText = "";
+            if (d) {
+                if (typeof d === 'string') {
+                    recognizedText = safeText(d);
+                } else if (typeof d === 'object') {
+                    recognizedText = safeText(d.text || d.result || d.message);
+                }
+            }
+            if (recognizedText !== "") {
+                ocrBox.innerText = recognizedText;
+            } else {
+                ocrBox.innerText = "No readable text found.";
+            }
+        });
+
+        // 🎮 Dedicated Game Status Message Listener
+        ui.on_message('game_update', (d) => {
+            const banner = document.getElementById('game-status-banner');
+            const bannerTitle = document.getElementById('game-banner-title');
+            const bannerText = document.getElementById('game-banner-text');
+
+            if (!d) {
+                banner.style.display = 'none';
+                return;
+            }
+
+            banner.style.display = 'block';
+            let title = d.title || "🎮 Active Game";
+            let message = d.message || "";
+            let statusType = d.status || "playing";
+
+            bannerTitle.innerText = title;
+            bannerText.innerText = message;
+
+            if (statusType === 'win') {
+                banner.style.background = '#e8f5e9';
+                banner.style.borderColor = '#4caf50';
+                bannerTitle.style.color = '#2e7d32';
+                bannerText.style.color = '#1b5e20';
+            } else if (statusType === 'playing') {
+                banner.style.background = '#fff3e0';
+                banner.style.borderColor = '#fb8c00';
+                bannerTitle.style.color = '#e65100';
+                bannerText.style.color = '#bf360c';
+            }
+        });
+
+        ui.on_message('chat_update', (d) => {
+            let spokenText = "";
+            let responseText = "";
+            if (d) {
+                if (typeof d === 'string') {
+                    spokenText = safeText(d);
+                    responseText = safeText(d);
+                } else if (typeof d === 'object') {
+                    spokenText = safeText(d.spoken || d.text || d.command);
+                    responseText = safeText(d.response || d.message);
+                }
+            }
+            if (spokenText !== "" || responseText !== "") {
+                triggerInteractionSequence(spokenText, responseText);
+            }
+        });
+
+        ui.on_message('emotion_update', (d) => {
+            if (!d) return;
+            document.getElementById('emotion-label').innerText = `❤️ Emotion: ${safeText(d.emotion, "100")}%`;
+            document.getElementById('mood-label').innerText = `🧠 Mood: ${safeText(d.mood, "Happy")}`;
+
+            const faceElement = document.getElementById('emoji-face');
+            faceElement.innerText = safeText(d.emoji, "😻");
+
+            const speechText = safeText(d.speech);
+            if (speechText !== "") {
+                const speechElem = document.getElementById('cat-speech');
+                speechElem.style.animation = 'none';
+                speechElem.offsetHeight;
+                speechElem.style.animation = 'responsePopIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+                speechElem.innerText = `"${speechText}"`;
+            }
+
+            faceElement.classList.add('pop');
+            setTimeout(() => { faceElement.classList.remove('pop'); }, 300);
+        });
+
+        ui.on_message('interaction_update', (d) => {
+            const interactionBubble = document.getElementById('interaction-bubble');
+            let interactionValue = 0;
+
+            if (d !== null && d !== undefined) {
+                if (typeof d === 'number' || typeof d === 'string') {
+                    interactionValue = parseInt(d) || 0;
+                } else if (typeof d === 'object') {
+                    interactionValue = parseInt(d.interaction_value || d.value || 0);
+                }
+            }
+
+            interactionBubble.innerText = `✨ Score: ${interactionValue}`;
+
+            interactionBubble.style.transform = 'scale(1.2)';
+            setTimeout(() => {
+                interactionBubble.style.transform = 'scale(1)';
+            }, 200);
+
+            if (interactionValue >= 50) {
+                interactionBubble.style.background = 'linear-gradient(135deg, #f6d365, #fda085)';
+            } else if (interactionValue >= 20) {
+                interactionBubble.style.background = 'linear-gradient(135deg, #a18cd1, #fbc2eb)';
+            } else {
+                interactionBubble.style.background = 'linear-gradient(135deg, #ff7eb3, #ff758c)';
+            }
+        });
+
+        ui.on_message('status_log', (d) => {
+            revealStatusPanels();
+            let logMsg = typeof d === 'string' ? d : (d.log || d.message || "");
+            addSystemLog(logMsg);
+        });
+
+        ui.on_message('hardware_update', (d) => {
+            revealStatusPanels();
+            if (d && d.component && d.status !== undefined) {
+                updateHardwareStatus(d.component, d.status, d.ok);
+            }
+        });
+    </script>
+</body>
+</html>

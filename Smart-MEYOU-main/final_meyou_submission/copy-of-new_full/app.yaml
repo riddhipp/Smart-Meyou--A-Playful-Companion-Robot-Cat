@@ -1,0 +1,20 @@
+name: meyou
+description: MEYOU CAT ROBOT
+ports: []
+bricks:
+- arduino:cloud_llm:
+    variables:
+      API_KEY: ""
+- arduino:cloud_asr:
+    variables:
+      API_KEY: ""
+      LANGUAGE: en
+- arduino:web_ui: {}
+- arduino:arduino_cloud: {}
+- arduino:object_detection:
+    model: yolox-object-detection
+- arduino:image_classification:
+    model: person-classification
+- arduino:keyword_spotting:
+    model: ei-model-1049741-1
+icon: ❤️
